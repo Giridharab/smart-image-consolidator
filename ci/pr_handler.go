@@ -10,7 +10,6 @@ import (
 
 func SetPRStatus(report string, conclusion string) {
 	token := os.Getenv("GITHUB_TOKEN")
-	prNumber := os.Getenv("GITHUB_PR_NUMBER")
 	repo := os.Getenv("GITHUB_REPOSITORY")
 	commitSHA := os.Getenv("COMMIT_SHA")
 
