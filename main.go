@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"smart-image-consolidator/scanner"
+	"smart-image-consolidator/metrics"
 	"smart-image-consolidator/ai_explainer"
 	"smart-image-consolidator/ci"
 )
@@ -15,18 +16,22 @@ func main() {
 		tag := scanner.GetImageTag(df)
 		content := scanner.ReadDockerfile(df)
 
-		err := scanner.BuildDockerImage(df, tag)
-		var scanResult string
+		// Measure real-time metrics for the image
+		perfMetrics, err := metrics.MeasurePerformanceAndCost(tag)
+		var report string
 		if err != nil {
-			scanResult = fmt.Sprintf("Image build failed: %v", err)
+			report = fmt.Sprintf("⚠️ Failed to measure performance for image %s: %v", tag, err)
 		} else {
-			scanResult = "Security scan skipped (ChainGuard not installed)."
+			report = fmt.Sprintf("Docker Image: %s\nCPU: %s\nMemory: %s\nStorage: %s\nEstimated Cost: $%.2f",
+				tag, perfMetrics.CPUUsage, perfMetrics.MemoryUsage, perfMetrics.Storage, perfMetrics.EstimatedCost)
 		}
 
-		report := ai_explainer.GenerateAIReport(tag, scanResult, content)
+		// Optionally, add AI suggestions for canonical image
+		aiReport := ai_explainer.GenerateAIReport(tag, report, content)
+		finalReport := fmt.Sprintf("%s\n\n%s", report, aiReport)
 
 		// Post comment to PR
-		ci.CommentOnPR(report)
+		ci.CommentOnPR(finalReport)
 	}
 
 	fmt.Println("✅ Smart Image Consolidator completed for all Dockerfiles")
