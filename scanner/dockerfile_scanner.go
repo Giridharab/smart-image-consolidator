@@ -33,8 +33,19 @@ func ReadDockerfile(path string) string {
 
 func GetImageTag(dockerfilePath string) string {
 	parts := strings.Split(dockerfilePath, "/")
+	dir := parts[len(parts)-2] // parent directory of Dockerfile
 	name := parts[len(parts)-1]
-	return "pr-image-" + strings.ReplaceAll(name, "Dockerfile", "")
+
+	tag := "pr-image-" + dir
+	if strings.Contains(name, ".") {
+		ext := strings.Split(name, ".")[1]
+		tag += "-" + ext
+	}
+	// Replace invalid characters
+	tag = strings.ToLower(tag)
+	tag = strings.ReplaceAll(tag, "_", "-")
+	tag = strings.ReplaceAll(tag, ".", "-")
+	return tag
 }
 
 func BuildDockerImage(dockerfilePath string, tag string) error {
