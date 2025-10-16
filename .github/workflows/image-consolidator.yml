@@ -31,7 +31,7 @@ jobs:
 
       - name: Build and Run Smart Image Consolidator
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GH_PAT }}
         run: |
           go build -o consolidator main.go
           ./consolidator
