@@ -15,19 +15,17 @@ func main() {
 		tag := scanner.GetImageTag(df)
 		content := scanner.ReadDockerfile(df)
 
-		// Optional: still build image if you want metrics
 		err := scanner.BuildDockerImage(df, tag)
+		var scanResult string
 		if err != nil {
-			fmt.Printf("Image build failed: %v\n", err)
+			scanResult = fmt.Sprintf("Image build failed: %v", err)
+		} else {
+			scanResult = "Security scan skipped (ChainGuard not installed)."
 		}
 
-		// Skip ChainGuard scan
-		scanResult := "Security scan skipped (ChainGuard not installed)."
-
-		// Generate report with canonical base suggestions
 		report := ai_explainer.GenerateAIReport(tag, scanResult, content)
 
-		// Post PR comment
+		// Post comment to PR
 		ci.CommentOnPR(report)
 	}
 

@@ -8,30 +8,30 @@ import (
 	"os"
 )
 
-func SetPRStatus(report string, conclusion string) {
-	token := os.Getenv("GITHUB_TOKEN")
+// CommentOnPR posts a comment to the pull request
+func CommentOnPR(report string) {
+	prNumber := os.Getenv("GITHUB_PR_NUMBER")
 	repo := os.Getenv("GITHUB_REPOSITORY")
-	commitSHA := os.Getenv("COMMIT_SHA")
+	token := os.Getenv("GITHUB_TOKEN")
 
-	if token == "" || commitSHA == "" || repo == "" {
-		fmt.Println("Missing environment variables for PR status")
+	if prNumber == "" || repo == "" || token == "" {
+		fmt.Println("Missing environment variables for PR comment")
 		return
 	}
 
-	url := fmt.Sprintf("https://api.github.com/repos/%s/check-runs", repo)
-	body := map[string]interface{}{
-		"name":       "Smart Image Consolidator",
-		"head_sha":   commitSHA,
-		"status":     "completed",
-		"conclusion": conclusion, // "success" | "failure" | "neutral"
-		"output": map[string]string{
-			"title":   "Smart Image Consolidator Analysis",
-			"summary": report,
-		},
+	url := fmt.Sprintf("https://api.github.com/repos/%s/issues/%s/comments", repo, prNumber)
+
+	body := map[string]string{
+		"body": report,
+	}
+	jsonBody, _ := json.Marshal(body)
+
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonBody))
+	if err != nil {
+		fmt.Println("Failed to create request:", err)
+		return
 	}
 
-	jsonBody, _ := json.Marshal(body)
-	req, _ := http.NewRequest("POST", url, bytes.NewBuffer(jsonBody))
 	req.Header.Set("Authorization", "Bearer "+token)
 	req.Header.Set("Accept", "application/vnd.github+json")
 	req.Header.Set("Content-Type", "application/json")
@@ -39,10 +39,10 @@ func SetPRStatus(report string, conclusion string) {
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		fmt.Println("Failed to post PR status:", err)
+		fmt.Println("Failed to post comment:", err)
 		return
 	}
 	defer resp.Body.Close()
 
-	fmt.Println("PR status posted with response code:", resp.StatusCode)
+	fmt.Println("PR comment posted with response code:", resp.StatusCode)
 }
