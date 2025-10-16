@@ -8,37 +8,42 @@ import (
 	"os"
 )
 
-func CommentOnPR(report string) {
+func SetPRStatus(report string, conclusion string) {
 	token := os.Getenv("GITHUB_TOKEN")
 	prNumber := os.Getenv("GITHUB_PR_NUMBER")
 	repo := os.Getenv("GITHUB_REPOSITORY")
 	commitSHA := os.Getenv("COMMIT_SHA")
 
-	if token == "" || prNumber == "" || repo == "" || commitSHA == "" {
-		fmt.Println("Missing environment variables")
+	if token == "" || commitSHA == "" || repo == "" {
+		fmt.Println("Missing environment variables for PR status")
 		return
 	}
 
-	// Create PR comment
-	url := fmt.Sprintf("https://api.github.com/repos/%s/issues/%s/comments", repo, prNumber)
-	body, _ := json.Marshal(map[string]string{"body": report})
-	req, _ := http.NewRequest("POST", url, bytes.NewBuffer(body))
-	req.Header.Set("Authorization", "Bearer "+token)
-	req.Header.Set("Content-Type", "application/json")
-	client := &http.Client{}
-	client.Do(req)
-
-	// Optional: set PR status
-	statusURL := fmt.Sprintf("https://api.github.com/repos/%s/statuses/%s", repo, commitSHA)
-	statusBody := map[string]string{
-		"state":       "success",
-		"description": "Smart Image Consolidator: Analysis complete",
-		"context":     "Smart Image Consolidator",
+	url := fmt.Sprintf("https://api.github.com/repos/%s/check-runs", repo)
+	body := map[string]interface{}{
+		"name":       "Smart Image Consolidator",
+		"head_sha":   commitSHA,
+		"status":     "completed",
+		"conclusion": conclusion, // "success" | "failure" | "neutral"
+		"output": map[string]string{
+			"title":   "Smart Image Consolidator Analysis",
+			"summary": report,
+		},
 	}
-	jsonStatus, _ := json.Marshal(statusBody)
-	req2, _ := http.NewRequest("POST", statusURL, bytes.NewBuffer(jsonStatus))
-	req2.Header.Set("Authorization", "Bearer "+token)
-	req2.Header.Set("Content-Type", "application/json")
-	client.Do(req2)
-}
 
+	jsonBody, _ := json.Marshal(body)
+	req, _ := http.NewRequest("POST", url, bytes.NewBuffer(jsonBody))
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Accept", "application/vnd.github+json")
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		fmt.Println("Failed to post PR status:", err)
+		return
+	}
+	defer resp.Body.Close()
+
+	fmt.Println("PR status posted with response code:", resp.StatusCode)
+}
