@@ -13,8 +13,8 @@ func main() {
 
 	for _, df := range dockerfiles {
 		tag := scanner.GetImageTag(df)
+		content := scanner.ReadDockerfile(df)
 
-		// Build the image
 		err := scanner.BuildDockerImage(df, tag)
 		var scanResult string
 		if err != nil {
@@ -30,13 +30,9 @@ func main() {
 			scanResult = "ChainGuard not installed. Security scan skipped."
 		}
 
-		// Generate AI-backed report
-		report := ai_explainer.GenerateAIReport(tag, scanResult)
-
-		// Post comment on PR
+		report := ai_explainer.GenerateAIReport(tag, scanResult, content)
 		ci.CommentOnPR(report)
 	}
 
 	fmt.Println("✅ Smart Image Consolidator completed for all Dockerfiles")
 }
-

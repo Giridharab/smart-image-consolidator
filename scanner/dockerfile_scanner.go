@@ -7,6 +7,7 @@ import (
 	"strings"
 	"fmt"
 	"os/exec"
+	"crypto/sha1"
 )
 
 func ScanDockerfiles(root string) []string {
@@ -33,8 +34,33 @@ func ReadDockerfile(path string) string {
 
 func GetImageTag(dockerfilePath string) string {
 	parts := strings.Split(dockerfilePath, "/")
+	var dir string
+	if len(parts) > 1 {
+		dir = parts[len(parts)-2]
+	} else {
+		dir = "root"
+	}
+
 	name := parts[len(parts)-1]
-	return "pr-image-" + strings.ReplaceAll(name, "Dockerfile", "")
+	tagBase := "pr-image-" + dir
+
+	// add suffix if Dockerfile has a name like Dockerfile.python
+	if strings.Contains(name, ".") {
+		ext := strings.Split(name, ".")[1]
+		tagBase += "-" + ext
+	}
+
+	// add short hash to guarantee uniqueness
+	hash := fmt.Sprintf("%x", sha1.Sum([]byte(dockerfilePath)))[:6]
+
+	tag := fmt.Sprintf("%s-%s", tagBase, hash)
+
+	// clean up tag (Docker tags must be lowercase, no spaces)
+	tag = strings.ToLower(tag)
+	tag = strings.ReplaceAll(tag, "_", "-")
+	tag = strings.ReplaceAll(tag, ".", "-")
+
+	return tag
 }
 
 func BuildDockerImage(dockerfilePath string, tag string) error {

@@ -8,37 +8,41 @@ import (
 	"os"
 )
 
+// CommentOnPR posts a comment to the pull request
 func CommentOnPR(report string) {
-	token := os.Getenv("GITHUB_TOKEN")
 	prNumber := os.Getenv("GITHUB_PR_NUMBER")
 	repo := os.Getenv("GITHUB_REPOSITORY")
-	commitSHA := os.Getenv("COMMIT_SHA")
+	token := os.Getenv("GITHUB_TOKEN")
 
-	if token == "" || prNumber == "" || repo == "" || commitSHA == "" {
-		fmt.Println("Missing environment variables")
+	if prNumber == "" || repo == "" || token == "" {
+		fmt.Println("Missing environment variables for PR comment")
 		return
 	}
 
-	// Create PR comment
 	url := fmt.Sprintf("https://api.github.com/repos/%s/issues/%s/comments", repo, prNumber)
-	body, _ := json.Marshal(map[string]string{"body": report})
-	req, _ := http.NewRequest("POST", url, bytes.NewBuffer(body))
-	req.Header.Set("Authorization", "Bearer "+token)
-	req.Header.Set("Content-Type", "application/json")
-	client := &http.Client{}
-	client.Do(req)
 
-	// Optional: set PR status
-	statusURL := fmt.Sprintf("https://api.github.com/repos/%s/statuses/%s", repo, commitSHA)
-	statusBody := map[string]string{
-		"state":       "success",
-		"description": "Smart Image Consolidator: Analysis complete",
-		"context":     "Smart Image Consolidator",
+	body := map[string]string{
+		"body": report,
 	}
-	jsonStatus, _ := json.Marshal(statusBody)
-	req2, _ := http.NewRequest("POST", statusURL, bytes.NewBuffer(jsonStatus))
-	req2.Header.Set("Authorization", "Bearer "+token)
-	req2.Header.Set("Content-Type", "application/json")
-	client.Do(req2)
-}
+	jsonBody, _ := json.Marshal(body)
 
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonBody))
+	if err != nil {
+		fmt.Println("Failed to create request:", err)
+		return
+	}
+
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Accept", "application/vnd.github+json")
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		fmt.Println("Failed to post comment:", err)
+		return
+	}
+	defer resp.Body.Close()
+
+	fmt.Println("PR comment posted with response code:", resp.StatusCode)
+}
